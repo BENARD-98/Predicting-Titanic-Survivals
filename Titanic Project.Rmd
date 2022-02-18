@@ -1,0 +1,328 @@
+---
+title: "Predicting the survivals in the Titanic"
+author: "Student Name"
+date: "17/12/2021"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(knitr)
+library(tinytex)
+library(gridExtra)
+library(plotly)
+library(fastDummies)
+library(car)
+library(lattice)
+library(caret)
+library(e1071)
+library(InformationValue)
+```
+
+```{r,include=FALSE}
+titanic <- read.csv("C:/Users/hp/Downloads/titanic.csv")
+```
+
+## Introduction
+
+The main objective of this research is to come up with a predictive model which predicts whether a passenger who bordered Titanic ship that sank in April 15th 1912 in the North Atlantic Ocean will survive or die given particular parameters. It had only been four days since the ship had set sail from Southampton to New York. To achieve the objectives of this study, data was downloaded from Kaggle website. The main reason for predicting the survival chances is to learn to build a classification model with the highest accuracy of prediction. Having a good understanding of developing logistic regression with high accuracy, makes classification wide range of problems in real life becomes easy to solve, like in the Health sector, business industry, etc. For example logistic regression can be used in the health sector with the aid of Artificial intelligence to classify if the tumor is malignant or benign. In the business industry it can be used to predict if the customer is likely to come back to shop again or not. Also it can be used in the financial institutions to tell if the transaction is fraudulent or genuine. Logistic regression has a wide range of applications across different domains of professionalism. Through this study study we will predict the chances of a particular individual surviving given their details like Age, gender, Passenger class, Fare paid, Family size. This helps in predicting the possible outcomes of an event i.e., either if it will occur or not.
+
+## Methodology
+
+The Titanic data used in this study is made up of 14 variables with 891 observations. The variables include:
+
+PassengerId: Passengers Identifier.
+
+Survived: which is a categorical variable either the passenger survived or died coded as 0 = died and 1 = survived, Pclass which is the passengers class with 1st, 2nd and 3rd which is Upper, Middle, lower respectively. Pclass is a ctegorical variable.
+
+Name: which is a name of the passenger and it is a metadata.
+
+Sex: which is categorical with male and female:
+
+Age: Age in years( Continuous variable)
+
+Sibsp: which is number of sibling or spouse aboard the ship.(Categorical)
+
+Parch: which is the number of parents or children aboard the ship.(Categorical Variable)
+
+Ticket: which is the ticket number for the passenger.(metadata)
+
+Fare: which is the passengers fare (continuous variable)
+
+Cabin: which is the Cabin Number.
+
+Embarked: which is the port of embarkation; C for Cherbourg, Q for Queenstown and S for Southampton. It is categorical.
+
+Frequencies and descriptive statistics such as the mean and the standard deviation with the aid of diagrams were employed in exploring the data. diagrams such as staked bar charts and histograms were used to visualize the interaction of the variables. Missing values in the data were removed form the data only to remain with the observations with complete response.
+
+The statistical test carried out is binomial logistic regression which is used for classification of two possible outcomes of a categorical variable. In this case we are classfying the passengers as either survived or died.
+
+```{r,include=FALSE}
+titanic
+```
+
+## Results
+
+### Summary Statistics
+
+The data has 891 observations with 12 variables, namely **Survived**, **Pclass, Sex, Age, Sibsp, Parch, Fare,** **Embarked.** ,**Name, passengerId, Ticket,** and **Cabin.**.
+
+```{r,include=FALSE}
+(summary(titanic))
+```
+
+The Summary statistics above shows that there are 177 missing Values in the column of the variable age. This missing values were removed by dropping them to remain with 714 complete observations.
+
+```{r,include=FALSE}
+sum(is.na(titanic))
+```
+
+```{r,include=FALSE}
+titanic <- titanic[complete.cases(titanic),]
+
+```
+
+### selecting Variables of interest
+
+The variables of interest in this data are **Survived**, **Pclass, Sex, Age, Sibsp, Parch, Fare,** and **Embarked.** Variables that were dropped are **Name, passengerId, Ticket,** and **Cabin.**
+
+All categorical variables were converted to be categorical by assigning ordinal groups values in order and nominal groups randomly.
+
+```{r,include=FALSE}
+(data <- titanic %>% 
+  select(c(-Ticket, -Cabin, -PassengerId)))
+titanic2 <- data
+```
+
+```{r,include=FALSE}
+titanic2$Pclass <- factor(titanic2$Pclass,
+                             levels = c(1,2,3),
+                             labels = c("Lower","Middle","Upper"))
+titanic2$Survived <- factor(titanic2$Survived,
+                             labels = c("Died","Survived"))
+titanic2$Sex <- factor(titanic2$Sex)
+
+titanic2$Embarked[titanic2$Embarked == 'S'] <- "Southampton"
+titanic2$Embarked[titanic2$Embarked == 'C'] <- "Cherbourg"
+titanic2$Embarked[titanic2$Embarked == 'Q'] <- "Queenstown"
+titanic2$Embarked <- as.factor(titanic2$Embarked)
+(cleaned_titanic <- titanic2)
+```
+
+### Bar chart showing survval per class
+
+The stacked bar chart below shows that 65.59% of the passengers who boardered in lower class survivied while 34.41% died. In the middle class 52.02% of the passengers died while 41.98% survived. Upper class was the most afected as 76.01% died while only 23.99% survived.
+
+```{r,echo=FALSE}
+kable(table(titanic2$Pclass,titanic2$Survived))
+x <- ggplot(data = titanic2,aes(x = Pclass,fill= Survived))+
+   geom_bar() +
+  #geom_text(aes(label = (..count..)*100 / tapply(..count.., ..x.., sum)[as.character(..x..)]),
+           # stat = "count", position = "fill")+
+  scale_fill_manual(values = c("brown","blue"))+
+  labs(title = "Survival per class", y = "count")
+(x)
+```
+
+### Bar chart Survival and death rates by gender
+
+The graph below shows the survival and death rates by gender. Male were the most affected as 79.47% of those who had bordered perished in the titanic incident while 20.53% survived. 75.48% of the females survived while24.52% died.
+
+```{r,echo=FALSE}
+kable(table(titanic2$Survived,titanic2$Sex))
+x <- ggplot(data = titanic2,aes(x = Sex,fill= Survived))+
+   geom_bar() +
+  #geom_text(aes(label = (..count..)*100 / tapply(..count.., ..x.., sum)[as.character(..x..)]),
+            #stat = "count", position = "fill")+
+  scale_fill_manual(values = c("brown","blue"))+
+  labs(title = "survival and death rates by gender",
+       x = "Gender", y = "count")
+(x)
+```
+
+### Bar chart for Embarkation
+
+The majority of the passenger were from southampton making up 77.59%, followed by Cherbourg with 18.21% then Queenstown with 3.9% and the remaining with 0.28% were not traced.
+
+```{r,echo=FALSE}
+kable(table(titanic2$Embarked,titanic2$Survive))
+x <- ggplot(data = titanic2,aes(x = Embarked,fill = Embarked))+
+   geom_bar() + labs(title = "Distribution of passengers as per the Embarkation port")
+(x)
+```
+
+### Histogram
+
+The Distribution of survival in the female histogram is heavily occupied those who survived while those who perished are few which is converse to that of male. The distribution of age for both groups are evenly distributed.
+
+```{r,echo=FALSE}
+x <- ggplot(data = titanic2,aes(x = Age, fill= Survived))+
+  geom_histogram(bins = 15, color = "white")+
+  scale_fill_manual(values = c("red","darkgreen"))+
+  labs(x= "Age",y = "Count of Passengers", title = "Distribtution of Age by Survival grouped by gender")+
+  facet_wrap(~Sex)
+(x)
+```
+
+### Logistic Regression Model For predicting Survival rates in titanic
+
+```{r,include=FALSE}
+data$Pclass <- factor(data$Pclass)
+data$Sex <- factor(data$Sex)
+data$Embarked <- as.factor(data$Embarked)
+```
+
+```{r, include=FALSE}
+data$female = ifelse(data$Sex=="female", 1, 0)
+data$embarked_c = ifelse(data$Embarked=="C", 1, 0)
+data$embarked_s = ifelse(data$Embarked=="S", 1, 0)
+head(data)
+```
+
+```{r, include=FALSE}
+data = data[-c(3, 4, 9)]
+head(data)
+```
+
+#### Removing Outliers using Box-plot methods in Age and Fare
+
+```{r,echo=FALSE}
+par(mfrow=c(1,2))
+boxplot(data$Age, main = "Checking Outliers", xlab = "Age", col = "lightblue")
+data$Age = ifelse(data$Age>=65, 65 , data$Age)
+data$Age = ifelse(data$Age<=0.042, 0.042, data$Age)
+boxplot(data$Age, main = "After removing Outliers", xlab = "Age",col = "brown")
+```
+
+```{r,echo=FALSE}
+par(mfrow=c(1,2))
+boxplot(data$Fare, main = "Checking Outliers", xlab = "Fare",col = "darkgreen")
+data$Fare = ifelse(data$Fare>=71.2833, 71.2833 , data$Fare)
+data$Fare = ifelse(data$Fare<=0.0000, 0.0000, data$Fare)
+boxplot(data$Fare, main = "After removing Outliers", xlab = "Fare", col = "blue")
+```
+
+``` {r,include=FALSE,warning = FALSE}
+set.seed(222)
+t= sample(1:nrow(data), 0.8*nrow(data))
+train = data[t,]
+test = data[-t,]
+```
+
+
+```{r,include=FALSE}
+train$Survived <- factor(train$Survived)
+```
+
+
+The variance inflation factors below shows that there is no variable to drop as they are all less than 5, which is the threshold.
+
+``` {r,echo=FALSE,warning = FALSE}
+model <- lm(Survived~., data=train)
+t = vif(model)
+sort(t, decreasing=TRUE)
+```
+
+```{r,include=FALSE}
+model1<- glm(Survived~., family="binomial", data=train)
+summary(model1)
+```
+
+```{r,include=FALSE}
+stepmodel = step(model1, direction="both")
+```
+
+```{r,include=FALSE}
+formula(stepmodel)
+```
+
+The model below shows the statistically significant coefficients for predicting survival;
+
+```{r,echo=FALSE}
+sum <- summary(stepmodel)
+sum$call
+sum$coefficients
+
+```
+
+```{r, include=FALSE}
+train$score <- predict(stepmodel, newdata = train, type="response")
+head(train$score)  
+```
+
+```{r,include = FALSE}
+tail(train$score)
+```
+
+#### Confusion Matrix and the model accuracy on test data
+
+Confusion matrix for the train data is as shown below:
+
+```{r,echo=FALSE}
+train$prediction <- ifelse(train$score>=0.6, 1, 0)
+confusion_matrix <- matrix(c(table(factor(train$prediction), factor(train$Survived))),2,2)
+colnames(confusion_matrix) <- c("Died","Survived")
+rownames(confusion_matrix) <- c("Died","Survived")
+kable(confusion_matrix)
+```
+
+The accuracy of the model is obtained from the confusion matrix by applying the formula below:
+$$
+Model Accuracy = \frac{TP+TP}{TP+TN+FP+FN} = \frac{305+165}{305+165+71+30} = 0.8031
+$$
+The accuracy of the model on train data is 
+`r ((confusion_matrix[1,1]+confusion_matrix[2,2])/sum(confusion_matrix))*100` which is fit for predicting the survival in the Titanic incidence.
+
+```{r,include=FALSE}
+((confusion_matrix[1,1]+confusion_matrix[2,2])/sum(confusion_matrix))*100
+```
+
+Below is an ROC curve showing an **AUROC** of 0.8805, which mean that the model quality is good for classification.
+
+```{r,echo=FALSE}
+x <- plotROC(actuals=train$Survived, predictedScores=as.numeric(fitted(stepmodel)))
+
+```
+
+The KS plot below is showing the maximum difference between TP and FP;
+
+```{r,echo=FALSE}
+ks_plot(actuals=train$Survived, predictedScores=as.numeric(fitted(stepmodel)))
+```
+
+```{r,include=FALSE}
+test$score<-predict(stepmodel, test, type = "response")
+head(test$score)
+```
+
+```{r,include=FALSE}
+test$predicted<-ifelse(test$score>=0.6, 1, 0)
+head(test$predicted)
+```
+
+#### Confusion Matrix and the model accuracy on test data
+
+The confusion matrix for the test data is as shown below:
+
+```{r,echo=FALSE}
+confusion_matrix <- matrix(c(table(factor(test$predicted), factor(test$Survived))),2,2)
+colnames(confusion_matrix) <- c("Died","Survived")
+rownames(confusion_matrix) <- c("Died","Survived")
+kable(confusion_matrix)
+```
+
+```{r,include=FALSE}
+
+(accuracy_test <- round(((confusion_matrix[1,1]+confusion_matrix[2,2])/sum(confusion_matrix))*100,2))
+```
+
+on applying the formula below:
+$$Model Accuracy = \frac{TP+TP}{TP+TN+FP+FN} = \frac{79+31}{79+31+23+10} = 0.7692$$
+we obtain the score of the model on test data as `r accuracy_test`% which is good.
+
+## Conclusion
+
+Through this study the objective of the research has been achieved as the model we did develop the model to predict the survival in the Titanic. The accuracy of the model on the training data was good as it was 80.31% as well as on the test data 76.92%. This high accuracy makes the model to be reliable in making prediction. The implication of the concept developed in this study can be applied to different domains of knowledge. The weakness of the research is that the data had a lot of missing observations which might affect model accuracy. Another weakness is that there is no future data to be used to test the model since the titanic incidence was just a one time accident.
